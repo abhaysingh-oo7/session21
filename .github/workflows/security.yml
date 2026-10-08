@@ -2,8 +2,7 @@ name: Session 21 Security
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
 
 jobs:
@@ -23,10 +22,14 @@ jobs:
         run: pip install -r application/requirements.txt
 
       - name: SAST - Bandit
-        run: pip install bandit && bandit -r application -ll --skip B104
+        run: |
+          pip install bandit
+          bandit -r application --skip B104
 
       - name: SCA - pip-audit
-        run: pip install pip-audit && pip-audit -r application/requirements.txt
+        run: |
+          pip install pip-audit
+          pip-audit -r application/requirements.txt
 
       - name: Secret Scan - Gitleaks
         uses: gitleaks/gitleaks-action@v2
