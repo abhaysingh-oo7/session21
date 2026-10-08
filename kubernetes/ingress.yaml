@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: final-devops-ingress
+spec:
+  rules:
+    - host: session21.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: final-devops-service
+                port:
+                  number: 80
