@@ -24,7 +24,7 @@ jobs:
       - name: SAST - Bandit
         run: |
           pip install bandit
-          bandit -r application --skip B104 || true
+          bandit -r application --exclude application/test_app.py --skip B104
 
       - name: SCA - pip-audit
         run: |
