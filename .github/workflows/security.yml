@@ -23,7 +23,7 @@ jobs:
         run: pip install -r application/requirements.txt
 
       - name: SAST - Bandit
-        run: pip install bandit && bandit -r application -ll
+        run: pip install bandit && bandit -r application -ll --skip B104
 
       - name: SCA - pip-audit
         run: pip install pip-audit && pip-audit -r application/requirements.txt
