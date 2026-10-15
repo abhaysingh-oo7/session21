@@ -1,0 +1,89 @@
+# Default values for taskboard chart
+
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "16-alpine"
+    pullPolicy: IfNotPresent
+  db:
+    name: taskboard
+    user: taskboard
+    password: taskboard_password
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClass: ""
+  service:
+    port: 5432
+  resources:
+    limits:
+      memory: 256Mi
+      cpu: 250m
+    requests:
+      memory: 128Mi
+      cpu: 100m
+
+backend:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/yourusername/taskboard-backend
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+  resources:
+    limits:
+      memory: 256Mi
+      cpu: 500m
+    requests:
+      memory: 128Mi
+      cpu: 100m
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 15
+    periodSeconds: 10
+  readinessProbe:
+    httpGet:
+      path: /ready
+      port: 8000
+    initialDelaySeconds: 10
+    periodSeconds: 5
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 75
+
+frontend:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/yourusername/taskboard-frontend
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    limits:
+      memory: 128Mi
+      cpu: 200m
+    requests:
+      memory: 64Mi
+      cpu: 50m
+
+ingress:
+  enabled: true
+  className: "nginx"
+  host: "taskboard.local"
+  tls: []
+
+monitoring:
+  enabled: false
+  interval: 15s
+  labels:
+    release: prometheus
+

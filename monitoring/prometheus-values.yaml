@@ -1,0 +1,39 @@
+# Helm values for kube-prometheus-stack deployment
+
+defaultRules:
+  create: true
+
+alertmanager:
+  enabled: false
+
+grafana:
+  enabled: true
+  adminPassword: "prom-operator"
+  service:
+    type: ClusterIP
+    port: 80
+
+prometheus:
+  enabled: true
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelector: {}
+    serviceMonitorNamespaceSelector: {}
+    resources:
+      limits:
+        memory: 1024Mi
+        cpu: 500m
+      requests:
+        memory: 256Mi
+        cpu: 100m
+    retention: 24h
+    scrapeInterval: 15s
+
+prometheusOperator:
+  enabled: true
+  admissionWebhooks:
+    enabled: false
+    patch:
+      enabled: false
+    certManager:
+      enabled: false

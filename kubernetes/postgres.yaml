@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: taskboard-postgres-pvc
+  namespace: taskboard
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taskboard-postgres
+  namespace: taskboard
+  labels:
+    app: taskboard-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: taskboard-postgres
+  template:
+    metadata:
+      labels:
+        app: taskboard-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_DB
+              value: "taskboard"
+            - name: POSTGRES_USER
+              value: "taskboard"
+            - name: POSTGRES_PASSWORD
+              value: "taskboard_password"
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: taskboard-postgres-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: taskboard-postgres
+  namespace: taskboard
+  labels:
+    app: taskboard-postgres
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgres
+  selector:
+    app: taskboard-postgres

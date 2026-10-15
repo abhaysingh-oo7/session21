@@ -1,40 +1,152 @@
-name: Session 21 CI/CD
+name: TaskBoard CI/CD Pipeline
 
 on:
   push:
     branches:
       - main
       - master
-      - lec21
   pull_request:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE_NAME: ${{ github.repository_owner }}/taskboard-backend
+  FRONTEND_IMAGE_NAME: ${{ github.repository_owner }}/taskboard-frontend
 
 jobs:
-  build-test:
+  # ── STAGE 1: AUTOMATED TESTS ────────────────────────────────────────────────
+  test:
+    name: 🧪 Automated Tests (Backend & Frontend)
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: "pip"
 
-      - name: Install dependencies
-        run: pip install -r application/requirements.txt
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Run tests
-        run: pytest application/test_app.py
+      - name: Run Backend Pytest
+        working-directory: ./backend
+        run: pytest -v
 
-      - name: Build Docker image
-        run: docker build -f docker/Dockerfile -t carbs411/session21:${{ github.sha }} .
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: frontend/package.json
 
-      - name: Login to Docker Hub
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Build React Frontend
+        working-directory: ./frontend
+        run: npm run build
+
+  # ── STAGE 2: BUILD, TRIVY SCAN & PUSH TO GHCR ────────────────────────────────
+  build-scan-push:
+    name: 🛡️ Build, Security Scan & Push to GHCR
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Lowercase Repository Names
+        run: |
+          echo "BACKEND_IMAGE=${REGISTRY}/$(echo ${{ env.BACKEND_IMAGE_NAME }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+          echo "FRONTEND_IMAGE=${REGISTRY}/$(echo ${{ env.FRONTEND_IMAGE_NAME }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Backend Image
+        run: |
+          docker build \
+            -t ${{ env.BACKEND_IMAGE }}:${{ github.sha }} \
+            -t ${{ env.BACKEND_IMAGE }}:latest \
+            ./backend
+
+      - name: Build Frontend Image
+        run: |
+          docker build \
+            -t ${{ env.FRONTEND_IMAGE }}:${{ github.sha }} \
+            -t ${{ env.FRONTEND_IMAGE }}:latest \
+            ./frontend
+
+      - name: Trivy Vulnerability Scan (Backend Image)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+          format: table
+          exit-code: "0"
+          ignore-unfixed: true
+          severity: "CRITICAL,HIGH"
+
+      - name: Trivy Vulnerability Scan (Frontend Image)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+          format: table
+          exit-code: "0"
+          ignore-unfixed: true
+          severity: "CRITICAL,HIGH"
+
+      - name: Log in to GitHub Container Registry (GHCR)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push Docker image
-        run: docker push carbs411/session21:${{ github.sha }}
+      - name: Push Images to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker push ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+          docker push ${{ env.BACKEND_IMAGE }}:latest
+          docker push ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+          docker push ${{ env.FRONTEND_IMAGE }}:latest
+
+  # ── STAGE 3: HELM VALIDATION & DEPLOY CHECK ─────────────────────────────────
+  deploy-dryrun:
+    name: 🚀 Helm Package & Deployment Check
+    needs: build-scan-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.14.0"
+
+      - name: Lint Helm Chart
+        run: |
+          helm lint helm/taskboard
+
+      - name: Helm Template Dry-Run
+        run: |
+          helm template taskboard ./helm/taskboard \
+            --set backend.image.tag=${{ github.sha }} \
+            --set frontend.image.tag=${{ github.sha }}

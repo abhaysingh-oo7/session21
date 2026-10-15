@@ -1,0 +1,19 @@
+# Dev values for local or minikube/kind deployment
+backend:
+  replicaCount: 1
+  resources:
+    requests:
+      memory: 64Mi
+      cpu: 50m
+
+frontend:
+  replicaCount: 1
+  resources:
+    requests:
+      memory: 32Mi
+      cpu: 25m
+
+ingress:
+  enabled: true
+  className: "nginx"
+  host: "taskboard.local"

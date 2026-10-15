@@ -1,0 +1,30 @@
+# Scenario 2: Broken Service / Zero Endpoints
+# The service selector does not match the actual pod labels.
+#
+# Investigation steps:
+#   kubectl apply -f troubleshooting/broken-service.yaml
+#   kubectl get svc -n taskboard
+#   kubectl get endpoints taskboard-broken-svc -n taskboard
+#   kubectl get pods -n taskboard --show-labels
+#
+# Root Cause:
+#   The Service selector is looking for 'app: taskboard-typo', but backend pods
+#   have label 'app.kubernetes.io/name: taskboard-backend' or 'app: taskboard-backend'.
+#   Therefore, Kubernetes cannot associate any Pod IPs with this Service.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: taskboard-broken-svc
+  namespace: taskboard
+  labels:
+    app: taskboard-broken-svc
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http
+  selector:
+    # Deliberate typo/mismatch: no pods exist with this label!
+    app: taskboard-backend-typo-broken

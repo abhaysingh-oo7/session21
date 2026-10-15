@@ -1,0 +1,34 @@
+# Scenario 1: Broken Image / ImagePullBackOff
+# The container image tag does not exist in the registry.
+#
+# Investigation steps:
+#   kubectl apply -f troubleshooting/broken-image.yaml
+#   kubectl get pods -n taskboard
+#   kubectl describe pod <broken-pod-name> -n taskboard
+#   kubectl get events -n taskboard --sort-by=.lastTimestamp
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taskboard-broken-image
+  namespace: taskboard
+  labels:
+    app: taskboard-broken-image
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: taskboard-broken-image
+  template:
+    metadata:
+      labels:
+        app: taskboard-broken-image
+    spec:
+      containers:
+        - name: backend
+          # Deliberately non-existent tag 'v999.999-doesnotexist' to trigger ImagePullBackOff
+          image: ghcr.io/yourusername/taskboard-backend:v999.999-doesnotexist
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http

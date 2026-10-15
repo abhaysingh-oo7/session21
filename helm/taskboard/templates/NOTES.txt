@@ -1,0 +1,38 @@
+========================================================================
+  TaskBoard Application deployed successfully!
+========================================================================
+
+Release Name: {{ .Release.Name }}
+Namespace:    {{ .Release.Namespace }}
+
+1. Check deployment status:
+   kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+2. Check services:
+   kubectl get svc -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+3. Check HPA:
+   kubectl get hpa -n {{ .Release.Namespace }}
+
+4. Access the application:
+{{- if .Values.ingress.enabled }}
+   Add the following line to your /etc/hosts file if testing locally:
+   127.0.0.1 {{ .Values.ingress.host }}
+
+   Then open in your browser:
+   http://{{ .Values.ingress.host }}/
+
+   Backend API:
+   http://{{ .Values.ingress.host }}/api/tasks
+   http://{{ .Values.ingress.host }}/health
+   http://{{ .Values.ingress.host }}/ready
+{{- else }}
+   Port-forward the frontend service:
+   kubectl port-forward svc/{{ include "taskboard.fullname" . }}-frontend 3000:80 -n {{ .Release.Namespace }}
+   Open http://localhost:3000
+
+   Port-forward the backend service:
+   kubectl port-forward svc/{{ include "taskboard.fullname" . }}-backend 8000:8000 -n {{ .Release.Namespace }}
+   Open http://localhost:8000/docs
+{{- end }}
+========================================================================
