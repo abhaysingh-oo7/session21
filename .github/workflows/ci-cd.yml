@@ -65,6 +65,10 @@ jobs:
     name: 🛡️ Build, Security Scan & Push to GHCR
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
 
     steps:
       - name: Checkout Code
