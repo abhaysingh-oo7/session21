@@ -43,7 +43,7 @@ variable "private_subnet_cidrs" {
 variable "node_instance_types" {
   description = "Instance types for EKS worker nodes"
   type        = list(string)
-  default     = ["t3.medium"]
+  default     = ["t3.micro"]
 }
 
 variable "desired_nodes" {
